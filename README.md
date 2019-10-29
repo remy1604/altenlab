@@ -5,12 +5,12 @@ project are Tesseract.js and PDF.js.
 The users can also obtain the information they want through selecting the related options. Since the main need is
 to recognize invoices of clients, the current available options are id, HT, TTC, TVA, etc.
 
-##Getting Started
-###Online demo
+## Getting Started
+### Online demo
 [https://remy1604.github.io/altenlab/](https://remy1604.github.io/altenlab/)
 
 
-##Getting Code
+## Getting Code
 To get a local copy of the current code, clone it using git:
 ```
 $ git clone https://github.com/remy1604/altenlab.git

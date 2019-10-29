@@ -5,6 +5,7 @@
         <h3>Recognizing...</h3>
       </div>
     </div>
+    <h1>AltenLab-OCR platform</h1>
     <div class="container">
       <div class="container--step step1">
         <h3>STEP 1 - Upload file</h3>
