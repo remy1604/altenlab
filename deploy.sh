@@ -1,17 +1,17 @@
 #!/usr/bin/env sh
 
-# 当发生错误时中止脚本
+# Abort script when an error occurs
 set -e
 
-# 构建
+# build
 npm run build
 
-# cd 到构建输出的目录下
+# change to directory dist
 cd dist
 
 git init
 git add -A
 git commit -m 'deploy'
 
-# 部署到 https://<USERNAME>.github.io/<REPO>
+# deploy to https://<USERNAME>.github.io/<REPO>
 git push -f git@github.com:remy1604/altenlab.git master:gh-pages
