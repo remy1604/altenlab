@@ -10,6 +10,8 @@
       <div class="container--step step1">
         <h3>STEP 1 - Upload file</h3>
         <input type="file" @change="upload"/>
+        <p>Supported formats: jpg, png, pdf</p>
+        <p>Max file size: 10Mb</p>
       </div>
 
       <div class="container--step step2">
@@ -21,21 +23,27 @@
         </select>
         <!--selector for invoice-->
         <div v-if="selected == 'invoice' && text">
-          <input type="checkbox" v-model="options" value="pageNum">pageNum
-          <input type="checkbox" v-model="options" value="id">id
-          <input type="checkbox" v-model="options" value="ttc">ttc
-          <input type="checkbox" v-model="options" value="ht">ht
-          <input type="checkbox" v-model="options" value="tva">tva
+          <input type="checkbox" v-model="options" value="Page quantity">Page quantity
+          <input type="checkbox" v-model="options" value="Invoice number">Invoice number
+          <input type="checkbox" v-model="options" value="TTC">TTC
+          <input type="checkbox" v-model="options" value="HT">HT
+          <input type="checkbox" v-model="options" value="TVA">TVA
           <div>You have selected:{{options}}</div>
         </div>
-        <p>{{text}}</p>
-        <div id="imgDiv"></div>
+        <div v-if="text" class="card-round">
+          <p>Recognized Text:</p>
+          <p>{{text}}</p>
+        </div>
+        <div class="card-round">
+          <p>Uploaded File :</p>
+          <div id="imgDiv"></div>
+        </div>
       </div>
 
       <div class="container--step step3">
         <h3>STEP 3 - Find your information here</h3>
-        <div class="step3--card" v-for="element in options" :key="element">
-          <span v-if="element == 'pageNum'">Page:{{invoice.pageNum}}</span>
+        <div class="card-round" v-for="element in options" :key="element">
+          <span v-if="element == 'Page quantity'">Page:{{invoice.pageNum}}</span>
           <div v-else>
             <p>{{element}} result:</p>
             <ul>
@@ -58,6 +66,8 @@
   import PDFJS from 'pdfjs-dist';
   PDFJS.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.js';
 
+  import Tiff from 'tiff.js';
+
   export default {
     name: 'app',
     data() {
@@ -78,7 +88,7 @@
     watch: {
       options() {
         this.options.forEach(element => {
-          if(element != 'pageNum') {
+          if(element != 'Page quantity') {
             this.invoice[element] = this.matchInfo(element)
           }
         })
@@ -93,68 +103,90 @@
           tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
         });
         const file = e.target.files[0];
-        if(file.size <= 2000000) {
+        if(file.size <= 10000000) {
           //if format is pdf
           this.showOverlayer = true;
           if(file.type.indexOf('pdf')>-1) {
             this.recognizePdf(file);
-          }else {
+          }else if(file.type.indexOf('tif')>-1 || file.type.indexOf('tiff')>-1) {
+            this.recognizeTiff(file)
+          }
+          else {
             this.recognizeImage(file);
           }
         }else {
-          alert ('The uploaded file should not be over 2M!')
+          alert ('The uploaded file should not be over 10Mb!')
         }
+      },
+      recognizeTiff(file) {
+        var reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+        reader.addEventListener("load",  () => {
+          var tiff = new Tiff({buffer: reader.result});
+          var pageNum = tiff.countDirectory();
+          this.invoice.pageNum = pageNum;
+          for (var i = 0; i < pageNum; ++i) {
+            tiff.setDirectory(i);
+            var canvas = tiff.toCanvas();
+            canvas.style.width = "100%";
+            canvas.style.height = "100%";
+            canvas.style.boxShadow = '0px 0px 5px #888888';
+            const imageDiv = document.getElementById('imgDiv');
+            imageDiv.append(canvas);
+            try {
+              worker.recognize(canvas).then((result) => {
+                this.text += result.data.text;
+                this.showOverlayer = false
+              });
+            }catch (error) {
+              alert (error)
+            }
+          }
+        })
       },
       recognizePdf(file) {
         var reader = new FileReader();
-        var scale = 2;
         reader.readAsArrayBuffer(file);
         reader.addEventListener("load",  () => {
           PDFJS.getDocument(reader.result).then((pdf) => {
             var pageNum = pdf.numPages;
             this.invoice.pageNum = pageNum;
-
+            const imageDiv = document.getElementById('imgDiv');
             for(var i = 1; i <= pageNum; i++) {
               var canvas = document.createElement('canvas');
               canvas.id = "pageNum" + i;
-              var imageDiv = document.getElementById('imgDiv');
-              // imageDiv.append(canvas);
-              var context = canvas.getContext('2d');
-              pdf.getPage(pageNum).then((page) => {
-                var viewport = page.getViewport(scale); // reference canvas via context
-                var canvasObj = context.canvas;
-                canvasObj.width = viewport.width;
-                canvasObj.height = viewport.height;
-                canvasObj.style.width = "100%";
-                canvasObj.style.height = "100%";
-                var renderContext = {
-                  canvasContext: context,
-                  viewport: viewport
-                };
-                page.render(renderContext).then(() => {
-                  return page.getTextContent()
-                }).then(() => {
-                  var url = canvas.toDataURL("image/png");
-                  const img = document.createElement('img');
-                  img.id = "pageNum" + i;
-                  img.src = url;
-                  img.style.width = '100%';
-                  img.style.height = '100%';
-                  img.style.boxShadow = '0px 0px 5px #888888';
-                  imageDiv.append(img);
-                  try {
-                    worker.recognize(img).then((result) => {
-                      this.text += result.data.text;
-                      this.showOverlayer = false
-                    });
-                  }catch (error) {
-                    alert (error)
-                  }
-                });
-              })
+              imageDiv.append(canvas);
+              const context = canvas.getContext('2d');
+              this.canvas2img(pdf, i, context, canvas);
             }
           })
         }, false)
+      },
+      canvas2img(pdf, pageNum, context, canvas) {
+        var scale = 2;
+        pdf.getPage(pageNum).then((page) => {
+          var viewport = page.getViewport(scale); // reference canvas via context
+          var canvasObj = context.canvas;
+          canvasObj.width = viewport.width;
+          canvasObj.height = viewport.height;
+          canvasObj.style.width = "100%";
+          canvasObj.style.height = "100%";
+          canvasObj.style.boxShadow = '0px 0px 5px #888888';
+          var renderContext = {
+            canvasContext: context,
+            viewport: viewport
+          };
+          page.render(renderContext).then(() => {
+            try {
+              worker.recognize(canvas).then((result) => {
+                this.text += result.data.text;
+                this.showOverlayer = false
+              });
+            }catch (error) {
+              alert (error)
+            }
+          });
+        })
       },
       recognizeImage(file) {
         var imageDiv = document.getElementById('imgDiv');
@@ -184,19 +216,19 @@
         var reqG;
         var reqS;
         switch(val) {
-          case('id'):
+          case('Invoice number'):
             reqG = /FACTURE/gi;
             reqS = /FACTURE(.*)/gi;
             break;
-          case('ht'):
+          case('HT'):
             reqG = /HT/gi;
             reqS = /HT(.*)/gi;
             break;
-          case('ttc'):
+          case('TTC'):
             reqG = /TTC/gi;
             reqS = /TTC(.*)/gi;
             break;
-          case('tva'):
+          case('TVA'):
             reqG = /TVA/gi;
             reqS = /TVA(.*)/gi;
             break;
@@ -262,7 +294,7 @@
   .step2, .step3 {
     width: 40%;
   }
-  .step3--card {
+  .card-round {
     margin: 15px;
     padding: 5px;
     box-shadow: 0 0 5px #888888;
