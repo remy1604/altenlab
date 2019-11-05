@@ -7,41 +7,56 @@
     </div>
     <h1>AltenLab-OCR platform</h1>
     <div class="container">
-      <div class="container--step step1">
-        <h3>STEP 1 - Upload file</h3>
-        <input type="file" @change="upload"/>
-        <p>Supported formats: jpg, png, pdf</p>
-        <p>Max file size: 10Mb</p>
-      </div>
+      <div class="container--step">
+        <div class="container--step--up">
+          <h3>STEP 1 - Upload file</h3>
+          <input type="file" @change="upload"/>
+          <p>Supported formats: jpg, png, pdf, tiff</p>
+          <p>Max file size: 10Mb</p>
+        </div>
 
-      <div class="container--step step2">
-        <h3>STEP 2 - Select your information</h3>
-        <select v-model="selected">
-          <option disabled value="">Please file type</option>
-          <option value="default">Default</option>
-          <option value="invoice">Invoice</option>
-        </select>
-        <!--selector for invoice-->
-        <div v-if="selected == 'invoice' && text">
-          <input type="checkbox" v-model="options" value="Page quantity">Page quantity
-          <input type="checkbox" v-model="options" value="Invoice number">Invoice number
-          <input type="checkbox" v-model="options" value="TTC">TTC
-          <input type="checkbox" v-model="options" value="HT">HT
-          <input type="checkbox" v-model="options" value="TVA">TVA
-          <div>You have selected:{{options}}</div>
-        </div>
-        <div v-if="text" class="card-round">
-          <p>Recognized Text:</p>
-          <p>{{text}}</p>
-        </div>
-        <div class="card-round">
+        <div v-show="text" class="card-round">
           <p>Uploaded File :</p>
           <div id="imgDiv"></div>
         </div>
       </div>
 
-      <div class="container--step step3">
-        <h3>STEP 3 - Find your information here</h3>
+      <div class="container--step">
+        <div class="container--step--up">
+          <h3>STEP 2 - Select your information</h3>
+          <select v-model="selected">
+            <option disabled value="">Please file type</option>
+            <option value="default">Default</option>
+            <option value="invoice">Invoice</option>
+          </select>
+          <!--selector for invoice-->
+          <div v-if="selected == 'invoice' && text">
+            <input type="checkbox" v-model="options" value="Page quantity">Page quantity
+            <input type="checkbox" v-model="options" value="Invoice number">Invoice number
+            <input type="checkbox" v-model="options" value="TTC">TTC
+            <input type="checkbox" v-model="options" value="HT">HT
+            <input type="checkbox" v-model="options" value="TVA">TVA
+            <div class="options">You have selected:
+              <ul>
+                <li v-for="element in options" :key="element">
+                  {{element}}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="text" class="card-round">
+          <p>Recognized Text:</p>
+          <p>{{text}}</p>
+        </div>
+      </div>
+
+      <div class="container--step">
+        <div class="container--step--up">
+          <h3>STEP 3 - Find your information here</h3>
+          <p>Find below all the possible results according to your choices in step 2</p>
+        </div>
         <div class="card-round" v-for="element in options" :key="element">
           <span v-if="element == 'Page quantity'">Page:{{invoice.pageNum}}</span>
           <div v-else>
@@ -53,6 +68,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -237,7 +253,7 @@
         var idTimes = textCache.match(reqG);
 
         for(let i=0; i<idTimes.length; i++) {
-          let option = textCache.match(reqS)[0].slice(0,40);
+          let option = textCache.match(reqS)[0].slice(0,50);
           result.push(option);
           textCache = textCache.replace(option, '');
         }
@@ -287,17 +303,19 @@
   }
   .container--step {
     margin: 20px;
+    width: 33%;
   }
-  .step1 {
-    width: 20%;
-  }
-  .step2, .step3 {
-    width: 40%;
+  .container--step--up {
+    min-height: 254px;
   }
   .card-round {
     margin: 15px;
     padding: 5px;
     box-shadow: 0 0 5px #888888;
     border-radius: 10px;
+  }
+  .options {
+    margin-top: 20px;
+    width: 50%;
   }
 </style>
