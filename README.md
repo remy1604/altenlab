@@ -1,7 +1,7 @@
 # ALTENLAB-OCR
 ALTENLAB-OCR is a text recognition platform that built with Vue.js. Its goal is to recognize text online from files in
-format PNG, JPEG, and PDF through the method of optical character recognition (OCR). The core libraries used in this
-project are Tesseract.js and PDF.js.
+format PNG, JPEG, PDF and Tiff through the method of optical character recognition (OCR). The core libraries used in this
+project are Tesseract.js, PDF.js and Tiff.js.
 The users can also obtain the information they want through selecting the related options. Since the main need is
 to recognize invoices of clients, the current available options are id, HT, TTC, TVA, etc.
 
