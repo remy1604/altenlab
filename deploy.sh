@@ -11,7 +11,7 @@ cd dist
 
 git init
 git add -A
-git commit -m 'deploy V4'
+git commit -m 'deploy V-S45'
 
 # deploy to https://<USERNAME>.github.io/<REPO>
 git push -f git@github.com:remy1604/altenlab.git master:gh-pages
