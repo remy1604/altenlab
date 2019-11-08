@@ -17,32 +17,37 @@
       <div class="container--step">
         <h3>STEP 2 - Select your information</h3>
         <select v-model="selected">
-          <option disabled value="">Please file type</option>
+          <option disabled value="">Select file type</option>
           <option value="default">Default</option>
           <option value="invoice">Invoice</option>
         </select>
         <!--selector for invoice-->
-        <div v-if="selected == 'invoice' && text">
-          <input type="checkbox" v-model="options" value="Page quantity">Page quantity
-          <input type="checkbox" v-model="options" value="Invoice number">Invoice number
-          <input type="checkbox" v-model="options" value="TTC">TTC
-          <input type="checkbox" v-model="options" value="HT">HT
-          <input type="checkbox" v-model="options" value="TVA">TVA
-          <input type="checkbox" v-model="options" value="Date">Date
-          <input type="checkbox" v-model="options" value="Address">Address
+        <div v-if="selected === 'invoice' && text" class="container-checkbox">
+          <div class="checkbox">
+            <input type="checkbox" v-model="options" value="page"><span>Page quantity</span>
+          </div>
+          <div class="checkox">
+            <input type="checkbox" v-model="options" value="id"><span>Invoice number</span>
+          </div>
+          <div class="checkox">
+            <input type="checkbox" v-model="options" value="ttc"><span>TTC</span>
+          </div>
+          <div class="checkox">
+            <input type="checkbox" v-model="options" value="ht"><span>HT</span>
+          </div>
+          <div class="checkox">
+            <input type="checkbox" v-model="options" value="tva"><span>TVA</span>
+          </div>
+          <div class="checkox">
+            <input type="checkbox" v-model="options" value="date"><span>Date</span>
+          </div>
+          <div class="checkox">
+            <input type="checkbox" v-model="options" value="address"><span>Address</span>
+          </div>
         </div>
-        <div v-if="selected == 'default' && text">
-          <input type="checkbox" v-model="options" value="Page quantity">Page quantity
+        <div class="checkbox" v-if="selected == 'default' && text">
+          <input type="checkbox" v-model="options" value="page"><span>Page quantity</span>
         </div>
-
-        <div v-if="options" class="options">You have selected:
-          <ul>
-            <li v-for="element in options" :key="element">
-              {{element}}
-            </li>
-          </ul>
-        </div>
-
       </div>
 
       <div class="container--step">
@@ -66,13 +71,16 @@
       </div>
       <div class="container--step">
         <div class="card-round" v-for="element in options" :key="element">
-          <span v-if="element == 'Page quantity'">Page:{{invoice.pageNum}}</span>
-          <div v-else>
-            <p>{{element}} result:</p>
-            <ul>
-              <li v-for="(result,index) in invoice[element]" :key="index">{{result}}</li>
-            </ul>
-          </div>
+          <span v-if="element === 'page'">Page : {{invoice.page}}</span>
+          <p v-if="element === 'id'">Invoice number result:</p>
+          <p v-if="element === 'ttc'">TTC result :</p>
+          <p v-if="element === 'ht'">HT result :</p>
+          <p v-if="element === 'tva'">TVA result :</p>
+          <p v-if="element === 'date'">Date result :</p>
+          <p v-if="element === 'address'">Address result :</p>
+          <ul v-if="element !== 'page'">
+            <li v-for="(result,index) in invoice[element]" :key="index">{{result}}</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -101,7 +109,7 @@
         text: '',
         textArr: [],
         invoice: {
-          pageNum: 1,
+          page: 1,
           id: [],
           ttc: [],
           ht: [],
@@ -114,15 +122,17 @@
     },
     watch: {
       options() {
-        this.options.forEach(element => {
-          if(element != 'Page quantity') {
-            this.invoice[element] = this.matchInfo(element)
-          }
-        })
+        if(this.options != null) {
+          this.options.forEach(element => {
+            if(element != 'page') {
+              this.invoice[element] = this.matchInfo(element)
+            }
+          })
+        }
       }
     },
     mounted() {
-       this.load()
+       this.load();
     },
     methods: {
       async load() {
@@ -156,7 +166,7 @@
         reader.addEventListener("load",  () => {
           var tiff = new Tiff({buffer: reader.result});
           var pageNum = tiff.countDirectory();
-          this.invoice.pageNum = pageNum;
+          this.invoice.page = pageNum;
           for (var i = 0; i < pageNum; ++i) {
             tiff.setDirectory(i);
             //tiff to canvas
@@ -176,7 +186,7 @@
         reader.addEventListener("load",  () => {
           PDFJS.getDocument(reader.result).then((pdf) => {
             var pageNum = pdf.numPages;
-            this.invoice.pageNum = pageNum;
+            this.invoice.page = pageNum;
             const imageDiv = document.getElementById('imgDiv');
             for(var i = 1; i <= pageNum; i++) {
               //generate blank canvas
@@ -232,53 +242,48 @@
           img.style.height = '100%';
           img.style.boxShadow = '0px 0px 5px #888888';
           imageDiv.append(img);
-          try {
-            worker.recognize(img).then((result) => {
-              this.text = result.data.text;
-              this.showOverlayer = false
-            });
-          }catch (error) {
-            alert (error)
-          }
+          this.recognizeImg()
         }, false);
+      },
+      async recognizeImg() {
+        var imgArr = document.getElementsByTagName('img');
+        const {data: { text }} = await worker.recognize(imgArr[0]);
+        this.text += text;
+        this.textArr.push(text);
+        this.showOverlayer = false
       },
       matchInfo(val) {
         var result = [];
-        var regG;
-        var regS;
         switch(val) {
-          case('Invoice number'):
-            regG = /FACTURE/gi;
-            regS = /FACTURE(.*)/gi;
-            result = this.matchKeyWords(regG, regS);
+          case('id'):
+            var idReg = /facture\s\S+\s\S+\s\S+/gi;
+            result = this.matchKeyWords(idReg);
             break;
-          case('HT'):
-          case('TTC'):
-          case('TVA'):
-            regG = new RegExp(val, "gi");
-            regS = new RegExp(val + "(.*)", "gi");
-            result = this.matchKeyWords(regG, regS);
+          case('ht'):
+            var htReg = /ht\s\S+\s\S+\s\S+\s\S+/gi;
+            result = this.matchKeyWords(htReg);
             break;
-          case('Date'):
+          case('ttc'):
+            var ttcReg = /tva\s\S+\s\S+\s\S+\s\S+/gi;
+            result = this.matchKeyWords(ttcReg);
+            break;
+          case('tva'):
+            var tvaReg = /tva\s\S+\s\S+\s\S+\s\S+\s\S+/gi;
+            result = this.matchKeyWords(tvaReg);
+            break;
+          case('date'):
             result = this.matchDates();
             break;
-          case('Address'):
+          case('address'):
             result = this.matchAddress();
             break;
           default:
         }
         return result
       },
-      matchKeyWords(regG, reqS) {
+      matchKeyWords(reg) {
         var textCache = this.text;
-        var result = [];
-        var arr = textCache.match(regG);
-        for(let i=0; i<arr.length; i++) {
-          let option = textCache.match(reqS)[0].slice(0,50);
-          result.push(option);
-          textCache = textCache.replace(option, '');
-        }
-        return result
+        return textCache.match(reg);
       },
       matchDates() {
         var textCache = this.text;
@@ -316,7 +321,7 @@
         var textCache = this.text;
         var result = [];
         //adress format: 01 rue xxx (xxx) (xxx) (xxx) 75000 xxx (xxx)
-        var regAddress = /(\d+)\s(rue|r|avenue|AV|boulevard|BD|chemain|route)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)\s(\d{5})\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
+        var regAddress = /(\d+)\s(rue|r|avenue|AV|boulevard|BD|chemain|route)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)\s(\d*)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
         var addressArr = textCache.match(regAddress);
         return addressArr != null ? result.concat(addressArr) : result
       }
@@ -366,14 +371,16 @@
     margin: 20px;
     width: 33%;
   }
+  .container-checkbox {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    padding-left: 30%
+  }
   .card-round {
     margin: 15px;
     padding: 5px;
     box-shadow: 0 0 5px #888888;
     border-radius: 10px;
-  }
-  .options {
-    margin-top: 20px;
-    width: 50%;
   }
 </style>
