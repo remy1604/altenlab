@@ -55,6 +55,6 @@ $ bash deploy.sh
 ```
 
 ### Attention
-1. The uploaded files should not be over 10Mb.
+1. The uploaded files should not be over 50MB.
 2. Vertical recognition is not supported currently.
 3. The current supported file formats are png, jpg, and pdf.

@@ -11,7 +11,7 @@
         <h3>STEP 1 - Upload file</h3>
         <input type="file" @change="upload"/>
         <p>Supported formats: jpg, png, pdf, tiff</p>
-        <p>Max file size: 10Mb</p>
+        <p>Max file size: 50MB</p>
       </div>
 
       <div class="container--step">
@@ -45,7 +45,7 @@
             <input type="checkbox" v-model="options" value="address"><span>Address</span>
           </div>
         </div>
-        <div class="checkbox" v-if="selected == 'default' && text">
+        <div class="checkbox" v-if="selected === 'default' && text">
           <input type="checkbox" v-model="options" value="page"><span>Page quantity</span>
         </div>
       </div>
@@ -145,7 +145,7 @@
       },
       upload(e) {
         const file = e.target.files[0];
-        if(file.size <= 10000000) {
+        if(file.size <= 50000000) {
           //if format is pdf
           this.showOverlayer = true;
           if(file.type.indexOf('pdf')>-1) {
@@ -157,7 +157,7 @@
             this.recognizeImage(file);
           }
         }else {
-          alert ('The uploaded file should not be over 10Mb!')
+          alert ('The uploaded file should not be over 50MB!')
         }
       },
       recognizeTiff(file) {
@@ -264,7 +264,7 @@
             result = this.matchKeyWords(htReg);
             break;
           case('ttc'):
-            var ttcReg = /tva\s\S+\s\S+\s\S+\s\S+/gi;
+            var ttcReg = /ttc\s\S+\s\S+\s\S+\s\S+/gi;
             result = this.matchKeyWords(ttcReg);
             break;
           case('tva'):
@@ -321,7 +321,7 @@
         var textCache = this.text;
         var result = [];
         //adress format: 01 rue xxx (xxx) (xxx) (xxx) 75000 xxx (xxx)
-        var regAddress = /(\d+)\s(rue|r|avenue|AV|boulevard|BD|chemain|route)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)\s(\d*)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
+        var regAddress = /(\d+)\s(rue|r|avenue|av|boulevard|bd|chemin|ch|route)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)\s(\d*)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
         var addressArr = textCache.match(regAddress);
         return addressArr != null ? result.concat(addressArr) : result
       }
