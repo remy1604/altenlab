@@ -52,6 +52,7 @@
 
       <div class="container--step">
         <h3>STEP 3 - Find your information here</h3>
+        <p v-if="seconds > 0">This identification took {{seconds}} seconds.</p>
         <p>Find below all the possible results according to your choices in step 2</p>
       </div>
     </div>
@@ -105,6 +106,7 @@
     data() {
       return {
         selected: '',
+        file: 0,
         showOverlayer: false,
         text: '',
         textArr: [],
@@ -117,7 +119,8 @@
           date: [],
           address: []
         },
-        options: []
+        options: [],
+        seconds: 0
       }
     },
     watch: {
@@ -144,23 +147,52 @@
         });
       },
       upload(e) {
+        if(this.file > 0) {
+          this.refresh();
+          this.recognizeFile(e)
+        }else {
+          this.file ++;
+          this.recognizeFile(e)
+        }
+      },
+      refresh() {
+        //clear the recognized text
+        this.text = '';
+        this.textArr = [];
+
+        //clear time
+        this.seconds = 0;
+
+        //clear options
+        this.options = [];
+
+        //clear all <img/>
+        const imgDiv = document.getElementById('imgDiv');
+        while(imgDiv.hasChildNodes()) {
+          imgDiv.removeChild(imgDiv.firstChild)
+        }
+      },
+      recognizeFile(e) {
         const file = e.target.files[0];
         if(file.size <= 50000000) {
           //if format is pdf
           this.showOverlayer = true;
+          var time = setInterval(()=> {
+            this.seconds++
+          }, 1000);
           if(file.type.indexOf('pdf')>-1) {
-            this.recognizePdf(file);
+            this.recognizePdf(file, time);
           }else if(file.type.indexOf('tif')>-1 || file.type.indexOf('tiff')>-1) {
-            this.recognizeTiff(file)
+            this.recognizeTiff(file, time)
           }
           else {
-            this.recognizeImage(file);
+            this.recognizeImage(file, time);
           }
         }else {
           alert ('The uploaded file should not be over 50MB!')
         }
       },
-      recognizeTiff(file) {
+      recognizeTiff(file, time) {
         var reader = new FileReader();
         reader.readAsArrayBuffer(file);
         reader.addEventListener("load",  () => {
@@ -177,10 +209,10 @@
             const imageDiv = document.getElementById('imgDiv');
             imageDiv.append(canvas);
           }
-          this.recognizeCanvas()
+          this.recognizeCanvas(time)
         })
       },
-      recognizePdf(file) {
+      recognizePdf(file, time) {
         var reader = new FileReader();
         reader.readAsArrayBuffer(file);
         reader.addEventListener("load",  () => {
@@ -194,12 +226,12 @@
               canvas.id = "pageNum" + i;
               imageDiv.append(canvas);
               const context = canvas.getContext('2d');
-              this.canvas2Text(pdf, i, pageNum, context);
+              this.canvas2Text(pdf, i, pageNum, context, time);
             }
           })
         }, false)
       },
-      canvas2Text(pdf, i, pageNum, context) {
+      canvas2Text(pdf, i, pageNum, context, time) {
         var scale = 2;
         //pdf to canvas
         pdf.getPage(i).then((page) => {
@@ -216,22 +248,23 @@
           };
           page.render(renderContext).then(() => {
             if(i == pageNum) {
-              this.recognizeCanvas();
+              this.recognizeCanvas(time);
             }
           });
         })
       },
-      async recognizeCanvas() {
+      async recognizeCanvas(time) {
         // recognize canvas
         var canvasArr = document.getElementsByTagName('canvas');
         for(let i=0; i<canvasArr.length; i++) {
           const {data: { text }} = await worker.recognize(canvasArr[i]);
           this.text += text;
           this.textArr.push(text);
-          this.showOverlayer = false
         }
+        this.showOverlayer = false;
+        clearInterval(time)
       },
-      recognizeImage(file) {
+      recognizeImage(file, time) {
         var imageDiv = document.getElementById('imgDiv');
         var reader = new FileReader();
         reader.readAsDataURL(file);
@@ -242,33 +275,34 @@
           img.style.height = '100%';
           img.style.boxShadow = '0px 0px 5px #888888';
           imageDiv.append(img);
-          this.recognizeImg()
+          this.recognizeImg(time)
         }, false);
       },
-      async recognizeImg() {
+      async recognizeImg(time) {
         var imgArr = document.getElementsByTagName('img');
         const {data: { text }} = await worker.recognize(imgArr[0]);
         this.text += text;
         this.textArr.push(text);
         this.showOverlayer = false
+        clearInterval(time)
       },
       matchInfo(val) {
         var result = [];
         switch(val) {
           case('id'):
-            var idReg = /facture\s\S+\s\S+\s\S+/gi;
+            var idReg = /(facture|n\W\s)(.*)\d+\s/gi;
             result = this.matchKeyWords(idReg);
             break;
           case('ht'):
-            var htReg = /ht\s\S+\s\S+\s\S+\s\S+/gi;
+            var htReg = /(ht|(h\.t\.*))\s(.*)\d+/gi;
             result = this.matchKeyWords(htReg);
             break;
           case('ttc'):
-            var ttcReg = /ttc\s\S+\s\S+\s\S+\s\S+/gi;
+            var ttcReg = /(ttc|t\.t\.c\.*)\s(.*)\d+/gi;
             result = this.matchKeyWords(ttcReg);
             break;
           case('tva'):
-            var tvaReg = /tva\s\S+\s\S+\s\S+\s\S+\s\S+/gi;
+            var tvaReg = /(tva|t\.v\.a\.*)\s(.*)\d+/gi;
             result = this.matchKeyWords(tvaReg);
             break;
           case('date'):
@@ -307,7 +341,7 @@
         }
 
         //match dates like 'DD/MM/YYYY' or 'DD/MM/YY'
-        var regDayMonthYear = /(\d{2})\/(\d{2})\/(\d{4}|\d{2})/gi;
+        var regDayMonthYear = /(\d{2})(\/|-)(\d{2})(\/|-)(\d{4}|\d{2})/gi;
         var dmyArr = textCache.match(regDayMonthYear);
         result = dmyArr != null ? result.concat(dmyArr) : result;
 
@@ -320,10 +354,17 @@
       matchAddress() {
         var textCache = this.text;
         var result = [];
+        var addressArr1 = [];
+        var addressArr2 = [];
         //adress format: 01 rue xxx (xxx) (xxx) (xxx) 75000 xxx (xxx)
-        var regAddress = /(\d+)\s(rue|r|avenue|av|boulevard|bd|chemin|ch|route)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)\s(\d*)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
-        var addressArr = textCache.match(regAddress);
-        return addressArr != null ? result.concat(addressArr) : result
+        var regAddress1 = /(\d+\S*)\s(rue|r|avenue|av|boulevard|bd|chemin|ch|route|PROMENADE)(.*)(\d+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
+        addressArr1 = textCache.match(regAddress1);
+
+        //adress format: 01 rue xxx (xxx)
+        var regAddress2 = /(\d+\S*)\s(rue|r|avenue|av|boulevard|bd|chemin|ch|route|PROMENADE)\s([a-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]+)([\sa-zA-ZàâäèéêëîïôœùûüÿçÀÂÄÈÉÊËÎÏÔŒÙÛÜŸÇ]*)/gi;
+        addressArr2 = textCache.match(regAddress2);
+
+        return result.concat(addressArr1, addressArr2)
       }
     }
   }
